@@ -1,59 +1,63 @@
 /**
  * Kindred Service Worker Entry Point
- * 
- * This file handles polyfills specifically for the Chrome Extension Service Worker environment.
  */
+import '../lib/polyfill';
+import { getFirebaseAuth, getFirebaseFirestore } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 
-// 1. SAFE POLYFILLS
-// Only run if we are in a Service Worker context where 'window' is missing.
-const isServiceWorker = typeof self !== 'undefined' && 
-                        'ServiceWorkerGlobalScope' in self && 
-                        self instanceof ServiceWorkerGlobalScope;
+console.log('Kindred Background script initialized.');
 
-if (isServiceWorker && typeof (globalThis as any).window === 'undefined') {
-  const noop = () => {};
-  const mockWindow: any = {
-    setTimeout,
-    clearTimeout,
-    setInterval,
-    clearInterval,
-    location: { href: '', protocol: 'chrome-extension:' },
-    navigator: { userAgent: 'Kindred/1.0', onLine: true },
-    addEventListener: noop,
-    removeEventListener: noop,
-  };
+let currentRoomId: string | null = null;
+let isHost: boolean = false;
+let unsubRoom: (() => void) | null = null;
 
-  const mockDocument: any = {
-    createElement: () => ({
-      style: {},
-      setAttribute: noop,
-      appendChild: noop,
-      getElementsByTagName: () => [],
-    }),
-    location: mockWindow.location,
-    addEventListener: noop,
-    removeEventListener: noop,
-    documentElement: { style: {} },
-  };
-
-  // Use defineProperty to avoid "cannot set property" errors on non-writable globals
-  try {
-    Object.defineProperty(globalThis, 'window', { value: globalThis, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: mockDocument, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'location', { value: mockWindow.location, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'navigator', { value: mockWindow.navigator, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'localStorage', { 
-      value: { getItem: () => null, setItem: noop, removeItem: noop, clear: noop },
-      writable: true,
-      configurable: true 
-    });
-  } catch (e) {
-    console.warn('Polyfill injection partially failed:', e);
+onAuthStateChanged(getFirebaseAuth(), (user) => {
+  if (user) {
+    console.log('User is signed in:', user.uid);
   }
-}
-
-// 2. LOAD MAIN LOGIC
-// Dynamic import ensures the polyfills above are fully executed before any Firebase code loads.
-import('./main').catch(err => {
-  console.error('Kindred: Background main logic failed to load:', err);
 });
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'SYNC_EVENT' && isHost && currentRoomId) {
+    console.log('Received sync event from host:', message.payload);
+    const { action, time } = message.payload;
+    const db = getFirebaseFirestore();
+    const roomRef = doc(db, 'rooms', currentRoomId);
+    updateDoc(roomRef, { status: action, time, timestamp: Date.now() }).catch(console.error);
+  } else if (message.type === 'SET_ROOM') {
+    currentRoomId = message.payload.roomId;
+    isHost = message.payload.isHost;
+    console.log(`Background state updated: Room ${currentRoomId}, Host: ${isHost}`);
+
+    if (unsubRoom) {
+      unsubRoom();
+      unsubRoom = null;
+    }
+
+    if (!isHost && currentRoomId) {
+      const db = getFirebaseFirestore();
+      const roomRef = doc(db, 'rooms', currentRoomId);
+      unsubRoom = onSnapshot(roomRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          console.log('Sending sync command to content scripts:', data);
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0] && tabs[0].id) {
+              chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'SYNC_COMMAND',
+                payload: {
+                  action: data.status,
+                  time: data.time,
+                },
+              });
+            }
+          });
+        }
+      });
+    }
+  }
+  sendResponse({ success: true });
+  return true;
+});
+

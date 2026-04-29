@@ -1,3 +1,4 @@
+import './polyfill';
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
