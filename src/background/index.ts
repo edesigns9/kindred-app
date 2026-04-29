@@ -1,8 +1,13 @@
+// Polyfill for libraries that expect 'window' to exist (even if not used)
+if (typeof window === 'undefined') {
+  (globalThis as any).window = globalThis;
+}
+
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 
-console.log('Background script initialized. Auth:', !!auth, 'DB:', !!db);
+console.log('Background script initialized. Kindred Sync Active.');
 
 let currentRoomId: string | null = null;
 let isHost: boolean = false;
