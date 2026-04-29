@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "Represents a sync room for a party.",
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "string",
+          "description": "UID of the party host."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["play", "pause", "seeked"],
+          "description": "Current play state of the video."
+        },
+        "time": {
+          "type": "number",
+          "description": "Current playback position in seconds."
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Server-side or client-side timestamp of the last update."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the room was created."
+        }
+      },
+      "required": ["hostId", "status", "time"]
+    }
+  },
+  "firestore": {
+    "rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Collection of active sync rooms."
+    }
+  }
+}
