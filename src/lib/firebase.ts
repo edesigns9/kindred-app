@@ -17,11 +17,16 @@ export function getFirebaseApp() {
 export function getFirebaseAuth() {
   if (!auth) {
     const appInstance = getFirebaseApp();
-    const isServiceWorker = typeof self !== 'undefined' && 'ServiceWorkerGlobalScope' in self;
+    // Use a more robust check for Service Worker context
+    const isServiceWorker = typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope;
     
     if (isServiceWorker) {
-      auth = initializeAuth(appInstance, { persistence: indexedDBLocalPersistence });
+      console.log('Firebase Auth: Initializing for Service Worker');
+      auth = initializeAuth(appInstance, { 
+        persistence: indexedDBLocalPersistence 
+      });
     } else {
+      console.log('Firebase Auth: Initializing for Window');
       auth = getAuth(appInstance);
     }
   }
