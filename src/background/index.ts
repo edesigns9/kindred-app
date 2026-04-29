@@ -1,8 +1,4 @@
-// Polyfill for libraries that expect 'window' to exist (even if not used)
-if (typeof window === 'undefined') {
-  (globalThis as any).window = globalThis;
-}
-
+import './polyfill';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';

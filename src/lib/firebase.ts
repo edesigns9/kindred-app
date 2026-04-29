@@ -7,7 +7,10 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase services with environment check
-export const auth = typeof window !== 'undefined'
+// We check for ServiceWorkerGlobalScope to be sure we are in the background worker
+const isServiceWorker = typeof self !== 'undefined' && 'ServiceWorkerGlobalScope' in self;
+
+export const auth = !isServiceWorker
   ? getAuth(app)
   : initializeAuth(app, { persistence: indexedDBLocalPersistence });
 
