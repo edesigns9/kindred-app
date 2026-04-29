@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../lib/firebase';
+import { getFirebaseAuth, getFirebaseFirestore } from '../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -11,7 +11,7 @@ export function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(getFirebaseAuth(), (u) => {
       setUser(u);
     });
     return unsub;
@@ -20,7 +20,7 @@ export function App() {
   const login = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(getFirebaseAuth(), provider);
     } catch (e: any) {
       setError(e.message);
     }
@@ -29,6 +29,7 @@ export function App() {
   const createRoom = React.useCallback(async () => {
     if (!user) return;
     try {
+      const db = getFirebaseFirestore();
       const newRoomId = crypto.randomUUID().substring(0, 6).toUpperCase();
       await setDoc(doc(db, 'rooms', newRoomId), {
         hostId: user.uid,
@@ -47,6 +48,7 @@ export function App() {
   const joinRoom = async () => {
     if (!user || !roomId) return;
     try {
+      const db = getFirebaseFirestore();
       const roomSnap = await getDoc(doc(db, 'rooms', roomId));
       if (!roomSnap.exists()) {
         setError('Room not found');

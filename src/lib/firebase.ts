@@ -1,17 +1,36 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
 
-// Initialize Firebase services with environment check
-// We check for ServiceWorkerGlobalScope to be sure we are in the background worker
-const isServiceWorker = typeof self !== 'undefined' && 'ServiceWorkerGlobalScope' in self;
+export function getFirebaseApp() {
+  if (!app) {
+    app = initializeApp(firebaseConfig);
+  }
+  return app;
+}
 
-export const auth = !isServiceWorker
-  ? getAuth(app)
-  : initializeAuth(app, { persistence: indexedDBLocalPersistence });
+export function getFirebaseAuth() {
+  if (!auth) {
+    const appInstance = getFirebaseApp();
+    const isServiceWorker = typeof self !== 'undefined' && 'ServiceWorkerGlobalScope' in self;
+    
+    if (isServiceWorker) {
+      auth = initializeAuth(appInstance, { persistence: indexedDBLocalPersistence });
+    } else {
+      auth = getAuth(appInstance);
+    }
+  }
+  return auth;
+}
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export function getFirebaseFirestore() {
+  if (!db) {
+    db = getFirestore(getFirebaseApp(), firebaseConfig.firestoreDatabaseId);
+  }
+  return db;
+}
